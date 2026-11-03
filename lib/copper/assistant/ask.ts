@@ -10,7 +10,7 @@ import { callStream, THOUGHT_SUMMARIES } from "@/lib/ai/call";
 import { createLive, type Live } from "@/lib/ai/live";
 import { COPPER_INSTRUCTIONS } from "@/lib/copper/assistant/instructions";
 import type { Progress } from "@/lib/copper/assistant/progress";
-import { copperTools } from "@/lib/copper/assistant/tools";
+import { extendedTools } from "@/lib/copper/assistant/tools";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -52,7 +52,7 @@ export async function askCopper(
           ...(request.useTools
             ? {
                 instructions: COPPER_INSTRUCTIONS,
-                tools: copperTools,
+                tools: extendedTools,
                 stopWhen: stepCountIs(MAX_STEPS),
               }
             : {}),

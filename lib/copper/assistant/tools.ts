@@ -195,6 +195,63 @@ export async function checkAvailability(
   return { status: "ok", product: product.name, colors: stock };
 }
 
+export type CompareProductsInput = { products: ProductId[] };
+
+export type ProductComparison = {
+  products: {
+    id: ProductId;
+    name: string;
+    type: string;
+    priceUsd: number;
+    colors: string[];
+    features: string[];
+  }[];
+  /** How much cheaper the cheaper one is, in dollars (0 when the prices match). */
+  priceDifferenceUsd: number;
+  /** Name of the cheaper product, or null when the prices match. */
+  cheaper: string | null;
+  /** Colors both products come in. */
+  sharedColors: string[];
+};
+
+export const compareProductsInput: z.ZodType<CompareProductsInput> = z
+  .object({ products: z.array(z.enum(PRODUCT_IDS)).length(2) })
+  .refine(({ products }) => products[0] !== products[1], {
+    message: "Pick two different products to compare.",
+  });
+
+/** compare_products: two products side by side, all from the catalog. */
+export function compareProducts({
+  products: [firstId, secondId],
+}: CompareProductsInput): ProductComparison {
+  const catalog = getProducts();
+  const first = catalog.find((p) => p.id === firstId);
+  const second = catalog.find((p) => p.id === secondId);
+  if (!first || !second) throw new Error("Unknown product.");
+
+  const priceDifferenceUsd = cents(Math.abs(first.priceUsd - second.priceUsd));
+  const cheaper =
+    priceDifferenceUsd === 0
+      ? null
+      : first.priceUsd < second.priceUsd
+        ? first.name
+        : second.name;
+
+  return {
+    products: [first, second].map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      priceUsd: p.priceUsd,
+      colors: p.colors,
+      features: p.features.map((f) => f.name),
+    })),
+    priceDifferenceUsd,
+    cheaper,
+    sharedColors: first.colors.filter((c) => second.colors.includes(c)),
+  };
+}
+
 /** The tools the model can call. The descriptions tell it when to use each one. */
 export const copperTools: ToolSet = {
   get_products: tool({
@@ -220,5 +277,20 @@ export const copperTools: ToolSet = {
       "Check whether a product, or one of its colors, is in stock today, low on stock or back-ordered.",
     inputSchema: checkAvailabilityInput,
     execute: async (input) => checkAvailability(input),
+  }),
+};
+
+/**
+ * The extension: the four course tools plus compare_products. `copperTools`
+ * stays at exactly four because the course's tests require that; Ask Copper
+ * uses this list.
+ */
+export const extendedTools: ToolSet = {
+  ...copperTools,
+  compare_products: tool({
+    description:
+      "Compare two Copper products side by side: price, type, colors, features, and which one costs less.",
+    inputSchema: compareProductsInput,
+    execute: async (input) => compareProducts(input),
   }),
 };

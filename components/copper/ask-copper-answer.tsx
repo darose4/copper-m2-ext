@@ -198,6 +198,14 @@ function Sent({ step }: { step: ToolStep }) {
       </dl>
     );
   }
+  if (name === "compare_products") {
+    const products = Array.isArray(input.products) ? input.products : [];
+    return (
+      <dl className="space-y-1">
+        <Row label="Comparing">{products.map(productName).join(" vs. ")}</Row>
+      </dl>
+    );
+  }
   if (name === "check_availability")
     return (
       <dl className="space-y-1">
@@ -284,6 +292,45 @@ function Back({ step }: { step: ToolStep }) {
             </div>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (name === "compare_products" && Array.isArray(output.products)) {
+    const shared = Array.isArray(output.sharedColors)
+      ? output.sharedColors.map(String)
+      : [];
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-3">
+          {(output.products as Rec[]).map((p, i) => (
+            <div key={i} className="space-y-1">
+              <p className="font-medium">{String(p.name)}</p>
+              <p className="text-primary font-bold">
+                {formatUsd(Number(p.priceUsd))}
+              </p>
+              <p className="text-muted-foreground text-xs">{String(p.type)}</p>
+              <ul className="list-disc pl-4 text-xs">
+                {(Array.isArray(p.features) ? p.features : []).map((f) => (
+                  <li key={String(f)}>{String(f)}</li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-1">
+                {(Array.isArray(p.colors) ? p.colors : []).map((color) => (
+                  <Pill key={String(color)} className="bg-accent">
+                    {String(color)}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="border-t pt-2">
+          {output.cheaper
+            ? `${String(output.cheaper)} costs ${formatUsd(Number(output.priceDifferenceUsd))} less.`
+            : "They cost the same."}
+          {shared.length > 0 && ` Both come in ${listOf(shared)}.`}
+        </p>
       </div>
     );
   }
